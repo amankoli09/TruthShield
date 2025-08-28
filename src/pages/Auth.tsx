@@ -21,6 +21,7 @@ const Auth = () => {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [apiError, setApiError] = useState('');
+  const [isGoogleOAuthAvailable, setIsGoogleOAuthAvailable] = useState(false);
 
   const floatingElements = [
     { icon: Shield, delay: 0, x: 15, y: 20 },
@@ -32,6 +33,14 @@ const Auth = () => {
 
   useEffect(() => {
     setIsVisible(true);
+    
+    // Check if Google OAuth is available
+    const checkGoogleOAuth = async () => {
+      const available = await authService.isGoogleOAuthAvailable();
+      setIsGoogleOAuthAvailable(available);
+    };
+    
+    checkGoogleOAuth();
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -122,12 +131,16 @@ const Auth = () => {
     try {
       const result = await authService.initiateGoogleLogin();
       if (!result.success) {
-        setApiError(result.message || 'Failed to initiate Google login');
+        if (result.message?.includes('Google OAuth credentials not configured')) {
+          setApiError('Google login is not configured yet. Please use email/password login or contact support.');
+        } else {
+          setApiError(result.message || 'Failed to initiate Google login');
+        }
       }
       // If successful, Google OAuth window opens and user will be redirected via callback
     } catch (error) {
       console.error('Google login error:', error);
-      setApiError('Failed to initiate Google login. Please try again.');
+      setApiError('Google login is currently unavailable. Please use email/password login.');
     } finally {
       setIsSubmitting(false);
     }
@@ -402,12 +415,13 @@ const Auth = () => {
               <div className="flex-1 border-t border-gray-300"></div>
             </div>
 
-            {/* Google Sign In */}
-            <button
-              type="button"
-              onClick={handleGoogleLogin}
-              disabled={isSubmitting || isLoading}
-              className="group relative w-full bg-gradient-to-r from-gray-700 to-gray-900 border-2 border-gray-600 text-white py-3 px-4 rounded-xl font-medium hover:from-gray-600 hover:to-gray-800 hover:border-gray-500 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 hover:-translate-y-1 flex items-center justify-center overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+            {/* Google Sign In - Only show if available */}
+            {isGoogleOAuthAvailable && (
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={isSubmitting || isLoading}
+                className="group relative w-full bg-gradient-to-r from-gray-700 to-gray-900 border-2 border-gray-600 text-white py-3 px-4 rounded-xl font-medium hover:from-gray-600 hover:to-gray-800 hover:border-gray-500 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 hover:-translate-y-1 flex items-center justify-center overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               style={{
                 background: 'linear-gradient(45deg, #1f2937, #111827, #1f2937)',
                 backgroundSize: '200% 200%',
@@ -430,6 +444,7 @@ const Auth = () => {
                 </span>
               </div>
             </button>
+            )}
 
             {/* Footer */}
             <div className="mt-6 text-center">

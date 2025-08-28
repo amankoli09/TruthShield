@@ -2,9 +2,9 @@ const { google } = require('googleapis');
 
 // Google OAuth2 configuration
 const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID || 'your-google-client-id',
-  process.env.GOOGLE_CLIENT_SECRET || 'your-google-client-secret',
-  process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/api/auth/google/callback'
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  process.env.GOOGLE_REDIRECT_URI
 );
 
 // Scopes for Google OAuth
@@ -15,6 +15,10 @@ const SCOPES = [
 
 // Generate Google OAuth URL
 const getGoogleAuthUrl = () => {
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    throw new Error('Google OAuth credentials not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your .env file.');
+  }
+  
   return oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: SCOPES,

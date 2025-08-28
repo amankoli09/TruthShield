@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, TrendingUp, X, AlertTriangle, CheckCircle, Shield, Sparkles, Zap, Eye, Clock } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
+import verificationService from '../services/verificationService';
 
 const Verify = () => {
   const { actualTheme } = useTheme();
@@ -50,7 +51,17 @@ const Verify = () => {
     e.preventDefault();
     if (searchText.trim()) {
       setIsLoading(true);
-      navigate('/result', { state: { searchText } });
+      try {
+        // Call the verification service
+        const result = await verificationService.verifyContent(searchText.trim());
+        navigate('/result', { state: { searchText, verificationResult: result } });
+      } catch (error) {
+        console.error('Verification failed:', error);
+        // Navigate with error state
+        navigate('/result', { state: { searchText, error: error instanceof Error ? error.message : 'Verification failed' } });
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 

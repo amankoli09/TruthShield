@@ -13,6 +13,8 @@ const Result = () => {
   const [error, setError] = useState<string | null>(null);
 
   const searchText = location.state?.searchText;
+  const verificationResult = location.state?.verificationResult;
+  const errorFromVerify = location.state?.error;
 
   useEffect(() => {
     if (!searchText) {
@@ -20,6 +22,21 @@ const Result = () => {
       return;
     }
 
+    // If we already have a result from the Verify page, use it
+    if (verificationResult) {
+      setResult(verificationResult);
+      setLoading(false);
+      return;
+    }
+
+    // If there was an error from the Verify page, show it
+    if (errorFromVerify) {
+      setError(errorFromVerify);
+      setLoading(false);
+      return;
+    }
+
+    // Otherwise, perform verification (fallback)
     const performVerification = async () => {
       try {
         setLoading(true);
@@ -28,13 +45,13 @@ const Result = () => {
         console.log('Frontend: Starting verification for:', searchText);
         
         const isUrl = searchText.startsWith('http://') || searchText.startsWith('https://');
-        const verificationResult = await verificationService.verifyContent(
+        const result = await verificationService.verifyContent(
           searchText,
           isUrl ? 'url' : 'text'
         );
         
-        console.log('Frontend: Received result:', verificationResult);
-        setResult(verificationResult);
+        console.log('Frontend: Received result:', result);
+        setResult(result);
       } catch (err) {
         console.error('Frontend: Verification error:', err);
         setError(err instanceof Error ? err.message : 'Failed to verify content');
@@ -44,7 +61,7 @@ const Result = () => {
     };
 
     performVerification();
-  }, [searchText, navigate]);
+  }, [searchText, verificationResult, errorFromVerify, navigate]);
 
   const getStatusConfig = (result: string) => {
     switch (result) {

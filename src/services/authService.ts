@@ -161,31 +161,27 @@ class AuthService {
     }
   }
 
+  // Check if Google OAuth is available
+  async isGoogleOAuthAvailable(): Promise<boolean> {
+    try {
+      // Always show Google OAuth button for demo purposes
+      return true;
+    } catch (error) {
+      return true;
+    }
+  }
+
   // Initiate Google OAuth login
   async initiateGoogleLogin(): Promise<{ success: boolean; authUrl?: string; message?: string }> {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/google`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.authUrl) {
-        // Open Google OAuth page in new window
-        window.open(data.authUrl, '_blank', 'width=500,height=600');
-        return {
-          success: true,
-          authUrl: data.authUrl,
-        };
-      } else {
-        return {
-          success: false,
-          message: data.message || 'Failed to initiate Google login',
-        };
-      }
+      // Direct redirect to Google OAuth endpoint
+      const authUrl = `${API_BASE_URL}/auth/google`;
+      window.location.href = authUrl;
+      
+      return {
+        success: true,
+        authUrl: authUrl,
+      };
     } catch (error) {
       console.error('Google login initiation error:', error);
       return {

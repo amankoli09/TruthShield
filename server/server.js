@@ -2,7 +2,11 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const session = require('express-session');
 require('dotenv').config();
+
+// Import Passport configuration
+const passport = require('./config/passport');
 
 const verificationRoutes = require('./routes/verification');
 const healthRoutes = require('./routes/health');
@@ -33,6 +37,21 @@ const limiter = rateLimit({
 });
 
 app.use(limiter);
+
+// Session middleware (required for Passport)
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'truthshield-session-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
+
+// Passport middleware
+app.use(passport.initialize());
+app.use(passport.session());
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));

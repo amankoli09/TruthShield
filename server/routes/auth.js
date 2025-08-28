@@ -1,4 +1,5 @@
 const express = require('express');
+const passport = require('passport');
 const router = express.Router();
 
 // Simple in-memory user storage (in production, use a real database)
@@ -191,83 +192,67 @@ router.get('/verify', (req, res) => {
 
 // GET /api/auth/google - Initiate Google OAuth
 router.get('/google', (req, res) => {
-  try {
-    const { getGoogleAuthUrl } = require('../config/google-oauth');
-    const authUrl = getGoogleAuthUrl();
+  // For demo purposes, create a mock Google user instead of real OAuth
+  if (!process.env.GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID === 'your_google_client_id_here') {
+    // Create a demo Google user
+    const userId = userIdCounter++;
+    const demoUser = {
+      id: userId.toString(),
+      name: 'Demo Google User',
+      email: 'demo@gmail.com',
+      picture: 'https://via.placeholder.com/150',
+      provider: 'google',
+      createdAt: new Date().toISOString()
+    };
     
-    res.json({
-      success: true,
-      authUrl
-    });
-  } catch (error) {
-    console.error('Google OAuth initiation error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to initiate Google OAuth'
-    });
+    users.set(userId.toString(), demoUser);
+    const authToken = generateToken(userId.toString());
+    
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    return res.redirect(`${frontendUrl}/auth/callback?token=${authToken}&user=${encodeURIComponent(JSON.stringify({
+      id: demoUser.id,
+      name: demoUser.name,
+      email: demoUser.email,
+      picture: demoUser.picture
+    }))}`); 
   }
+  
+  passport.authenticate('google', {
+    scope: ['profile', 'email']
+  })(req, res);
+});
+
+// GET /api/auth/google-status - Check if Google OAuth is configured
+router.get('/google-status', (req, res) => {
+  const isConfigured = process.env.GOOGLE_CLIENT_ID && 
+                      process.env.GOOGLE_CLIENT_SECRET && 
+                      process.env.GOOGLE_CLIENT_ID !== 'your_google_client_id_here' &&
+                      process.env.GOOGLE_CLIENT_SECRET !== 'your_google_client_secret_here';
+  
+  res.json({
+    success: true,
+    available: isConfigured
+  });
 });
 
 // GET /api/auth/google/callback - Handle Google OAuth callback
-router.get('/google/callback', async (req, res) => {
-  try {
-    const { code } = req.query;
-    
-    if (!code) {
-      return res.status(400).json({
-        success: false,
-        message: 'Authorization code is required'
-      });
-    }
-
-    const { getGoogleUserInfo } = require('../config/google-oauth');
-    const googleUser = await getGoogleUserInfo(code);
-
-    // Check if user already exists
-    let existingUser = null;
-    for (const [id, user] of users) {
-      if (user.email === googleUser.email) {
-        existingUser = { id, ...user };
-        break;
-      }
-    }
-
-    let user;
-    if (existingUser) {
-      user = existingUser;
-    } else {
-      // Create new user
-      const userId = userIdCounter++;
-      const newUser = {
-        id: userId.toString(),
-        name: googleUser.name,
-        email: googleUser.email,
-        picture: googleUser.picture,
-        provider: 'google',
-        googleId: googleUser.id,
-        createdAt: new Date().toISOString()
-      };
-      users.set(userId.toString(), newUser);
-      user = newUser;
-    }
-
+router.get('/google/callback', 
+  passport.authenticate('google', { failureRedirect: '/auth?error=oauth_failed' }),
+  (req, res) => {
+    // Successful authentication
+    const user = req.user;
     const authToken = generateToken(user.id);
     
     // Redirect to frontend with token
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5176';
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     res.redirect(`${frontendUrl}/auth/callback?token=${authToken}&user=${encodeURIComponent(JSON.stringify({
       id: user.id,
       name: user.name,
       email: user.email,
       picture: user.picture
     }))}`);
-    
-  } catch (error) {
-    console.error('Google OAuth callback error:', error);
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5176';
-    res.redirect(`${frontendUrl}/auth/error?message=${encodeURIComponent('Google login failed')}`);
   }
-});
+);
 
 // POST /api/auth/google - Google OAuth login (for frontend token exchange)
 router.post('/google', (req, res) => {
